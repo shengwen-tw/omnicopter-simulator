@@ -137,9 +137,6 @@ quiver3(p6(1), p6(2), p6(3), r6(1), r6(2), r6(3), 'color', [1 0 0]);
 quiver3(p7(1), p7(2), p7(3), r7(1), r7(2), r7(3), 'color', [1 0 0]);
 quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
 
-pause;
-close all;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Construct omnicopter Jacobian matrix %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -243,8 +240,32 @@ for i = 1: ITERATION_TIMES
     f_motors = quadprog(Q, [], [], [], J, zeta, tb, tu, [], options);
     
     %convert motor thrusts to rigirbody force/torque
+    p_array = [p1, p2, p3, p4, p5, p6, p7, p8];
+    r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
+    f = omnicopter_thrust_to_force(f_motors, r_array);
+    M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff);
     
     %feed force/torque to the dynamics system
+    uav_dynamics.M = M;
+    uav_dynamics.f = f;
 end
 
+pause;
+close all;
+
+end
+
+function f=omnicopter_thrust_to_force(f_motors, r_array)
+    f = 0;
+    for i = 1: 8
+        f = f + (f_motors(i) * r_array(:, i));
+    end
+end
+
+function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff)
+    M = 0;
+    for i = 1: 8
+        M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
+            (propeller_drag_coeff * f_motors(i) * r_array(:, i));
+    end
 end
