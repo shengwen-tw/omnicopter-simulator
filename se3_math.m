@@ -1,3 +1,4 @@
+
 classdef se3_math
 	methods
 	function dcm = euler_to_dcm(obj, roll, pitch ,yaw)
@@ -57,6 +58,13 @@ classdef se3_math
 
 	function angle_rad = get_prv_angle(obj, R)
 		angle_rad = acos(0.5 * (R(1, 1) + R(2, 2) + R(3, 3) - 1));
+    end
+    
+    function vec_after=translation(obj, x, y, z, vec_before)
+        vec_after = [vec_before(1) + x;
+                     vec_before(2) + y;
+                     vec_before(3) + z];
 	end
-	end
+    end
 end
+
