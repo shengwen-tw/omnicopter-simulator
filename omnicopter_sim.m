@@ -6,7 +6,6 @@ math = se3_math;
 %%%%%%%%%%%%%%
 % Parameters %
 %%%%%%%%%%%%%%
-omnicopter_mode = true;
 
 %parameters of uav dyanmics
 uav_dynamics = dynamics;        %create uav dynamics object
@@ -51,14 +50,14 @@ R45_n = math.euler_to_dcm(deg2rad(-45), 0, 0);
 % Initialization: calculate position and direction vectors %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %position vectors (octorotor mode)
-p1 = [d * sin(deg2rad(45)); d * cos(deg2rad(45)); 0];
-p2 = [d * sin(deg2rad(45)); -d * cos(deg2rad(45)); 0];
-p3 = [-d * sin(deg2rad(45)); -d * cos(deg2rad(45)); 0];
-p4 = [-d * sin(deg2rad(45)); d * cos(deg2rad(45)); 0];
-p5 = [d * sin(deg2rad(45)); d * cos(deg2rad(45)); 0];
-p6 = [d * sin(deg2rad(45)); -d * cos(deg2rad(45)); 0];
-p7 = [-d * sin(deg2rad(45)); -d * cos(deg2rad(45)); 0];
-p8 = [-d * sin(deg2rad(45)); d * cos(deg2rad(45)); 0];
+p1 = [+d; +d; +d];
+p2 = [-d; +d; +d];
+p3 = [-d; -d; +d];
+p4 = [+d; -d; +d];
+p5 = [+d; +d; -d];
+p6 = [-d; +d; -d];
+p7 = [-d; -d; -d];
+p8 = [+d; -d; -d];
 
 %direction vectors (octorotor mode)
 r1 = [0; 0; -1];
@@ -69,27 +68,6 @@ r5 = [0; 0; 1];
 r6 = [0; 0; 1];
 r7 = [0; 0; 1];
 r8 = [0; 0; 1];
-
-%transform to omnicopter mode
-if omnicopter_mode == true
-    p1 = R45_n * p1;
-    p2 = R45_p * p2;
-    p3 = R45_p * p3;
-    p4 = R45_n * p4;
-    p5 = R45_p * p5;
-    p6 = R45_n * p6;
-    p7 = R45_n * p7;
-    p8 = R45_p * p8;
-    
-    r1 = R45_n * r1;
-    r2 = R45_p * r2;
-    r3 = R45_p * r3;
-    r4 = R45_n * r4;
-    r5 = R45_p * r5;
-    r6 = R45_n * r6;
-    r7 = R45_n * r7;
-    r8 = R45_p * r8;
-end
 
 %translate from hinge coordinatre frame to COG coordinate frame
 p1 = math.translation(0, +l*0.5, -h*0.5, p1);
