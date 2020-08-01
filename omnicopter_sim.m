@@ -188,7 +188,7 @@ for i = 1: ITERATION_TIMES
     M_feedfoward = WJW - uav_dynamics.J*(math.hat_map_3x3(uav_dynamics.W)*Rt*Rd*Wd - Rt*Rd*W_dot_d);
     
     %calculate desired moment
-    M_d = -omnicopter_kR(1).*eR - omnicopter_kW(1).*eW + M_feedfoward;
+    M_d = -omnicopter_kR.*eR - omnicopter_kW.*eW + M_feedfoward;
     
     %position error and velocity error
     xd = [0; 0; 0];
@@ -215,7 +215,7 @@ for i = 1: ITERATION_TIMES
     f = omnicopter_thrust_to_force(f_motors, r_array);
     M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff);
     
-    %print desired force and feasible force
+    %print desired force and 
     s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
         f_d(1), f_d(2), f_d(3), f(1), f(2), f(3));
     %disp(s);
