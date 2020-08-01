@@ -29,18 +29,16 @@ init_attitude(3) = deg2rad(0); %yaw
 uav_dynamics.R = math.euler_to_dcm(init_attitude(1), init_attitude(2), init_attitude(3));
 
 %parameters of omnicopter
-l = 0.5;
-h = 0.5;
-d = 2;
+d = 2; %[m]
 
 propeller_drag_coeff = 1;
 motor_max_thrust = 900 * 8.825985; %[gram force] to [N]
 
 %omnicopter control gains
-omnicopter_kx = [7.0; 7.0; 7.0];
-omnicopter_kv = [3.0; 3.0; 3.0];
-omnicopter_kR = [10; 10; 10];
-omnicopter_kW = [2; 2; 2];
+omnicopter_kx = [1; 1; 1];
+omnicopter_kv = [1; 1; 1];
+omnicopter_kR = [1; 1; 1];
+omnicopter_kW = [1; 1; 1];
 
 %rotation matrices for performing shape morphing
 R45_p = math.euler_to_dcm(deg2rad(45), 0, 0);
@@ -68,16 +66,6 @@ r5 = [0; 0; 1];
 r6 = [0; 0; 1];
 r7 = [0; 0; 1];
 r8 = [0; 0; 1];
-
-%translate from hinge coordinatre frame to COG coordinate frame
-p1 = math.translation(0, +l*0.5, -h*0.5, p1);
-p2 = math.translation(0, -l*0.5, -h*0.5, p2);
-p3 = math.translation(0, -l*0.5, -h*0.5, p3);
-p4 = math.translation(0, +l*0.5, -h*0.5, p4);
-p5 = math.translation(0, +l*0.5, +h*0.5, p5);
-p6 = math.translation(0, -l*0.5, +h*0.5, p6);
-p7 = math.translation(0, -l*0.5, +h*0.5, p7);
-p8 = math.translation(0, +l*0.5, +h*0.5, p8);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization of position and direction vectors %
@@ -118,8 +106,8 @@ quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Construct omnicopter Jacobian matrix %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%position matrix
-P = [p1, p2, p3, p4, p5, p6, p7, p8];
+%direction matrix
+R = [r1, r2, r3, r4, r5, r6, r7, r8];
 
 %force Jacobian
 Jf = [r1, r2, r3, r4, r5, r6, r7, r8];
@@ -133,7 +121,7 @@ Jm_thrust = [cross(p1, r1), ...
     cross(p6, r6), ...
     cross(p7, r7), ...
     cross(p8, r8)];
-Jm_drag = propeller_drag_coeff * P .* Jf;
+Jm_drag = propeller_drag_coeff * R .* Jf;
 Jm = Jm_thrust + Jm_drag;
 
 %force/moment Jacobian
@@ -181,17 +169,15 @@ for i = 1: ITERATION_TIMES
     Rd = math.euler_to_dcm(desired_roll, desired_pitch, desired_yaw);
     Rdt = Rd';
     
+    %desired angular velocity and desired angular acceleration
+    Wd = [0; 0; 0];
+    W_dot_d = [0; 0; 0];
+    
     Rt = uav_dynamics.R';
     I = eye(3);
     
     %attitude errors expressed in principle rotation angle
     eR_prv = 0.5 * trace(I - Rdt*uav_dynamics.R);
-    
-    %desired angular velocity
-    Wd = [0; 0; 0];
-    
-    %desired angular acceleration
-    W_dot_d = [0; 0; 0];
     
     %attitude error and attitude rate errors
     eR = 0.5 * math.vee_map_3x3((Rd'*uav_dynamics.R - Rt*Rd));
@@ -202,19 +188,25 @@ for i = 1: ITERATION_TIMES
     M_feedfoward = WJW - uav_dynamics.J*(math.hat_map_3x3(uav_dynamics.W)*Rt*Rd*Wd - Rt*Rd*W_dot_d);
     
     %calculate desired moment
-    M_d = [-omnicopter_kR(1)*eR(1) - omnicopter_kW(1)*eW(1) + M_feedfoward(1);
-        -omnicopter_kR(2)*eR(2) - omnicopter_kW(2)*eW(2) + M_feedfoward(2);
-        -omnicopter_kR(3)*eR(3) - omnicopter_kW(3)*eW(3) + M_feedfoward(3)];
+    M_d = -omnicopter_kR(1).*eR - omnicopter_kW(1).*eW + M_feedfoward;
+    
+    %position error and velocity error
+    xd = [0; 0; 0];
+    vd = [0; 0; 0];
+    ex = uav_dynamics.x - xd;
+    ev = uav_dynamics.v - vd;
     
     %calculate desired force
+    e3 = [0; 0; 1];
+    f_d = Rt * (-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
     
-    F_d = [0; 0; 0]; %FIXME: DELETE THIS!
+    f_d = [0; 0; 0]; %FIXME: DELETE THIS!
     M_d = [0; 0; 0]; %FIXME: DELETE THIS!
     
     %calculate motor thrust via optimization
     options = [];
-    %options = optimoptions('quadprog','Display','off'); %make quadprog silent
-    zeta = [F_d; M_d];
+    options = optimoptions('quadprog','Display','off'); %make quadprog silent
+    zeta = [f_d; M_d];
     f_motors = quadprog(Q, [], [], [], J, zeta, tb, tu, [], options);
     
     %convert motor thrusts to rigirbody force/torque
@@ -222,6 +214,11 @@ for i = 1: ITERATION_TIMES
     r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
     f = omnicopter_thrust_to_force(f_motors, r_array);
     M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff);
+    
+    %print desired force and feasible force
+    s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
+        f_d(1), f_d(2), f_d(3), f(1), f(2), f(3));
+    %disp(s);
     
     %feed force/torque to the dynamics system
     uav_dynamics.M = M;
@@ -234,16 +231,16 @@ close all;
 end
 
 function f=omnicopter_thrust_to_force(f_motors, r_array)
-    f = 0;
-    for i = 1: 8
-        f = f + (f_motors(i) * r_array(:, i));
-    end
+f = 0;
+for i = 1: 8
+    f = f + (f_motors(i) * r_array(:, i));
+end
 end
 
 function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff)
-    M = 0;
-    for i = 1: 8
-        M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
-            (propeller_drag_coeff * f_motors(i) * r_array(:, i));
-    end
+M = 0;
+for i = 1: 8
+    M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
+        (propeller_drag_coeff * f_motors(i) * r_array(:, i));
+end
 end
