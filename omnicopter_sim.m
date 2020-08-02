@@ -29,7 +29,7 @@ init_attitude(3) = deg2rad(0); %yaw
 uav_dynamics.R = math.euler_to_dcm(init_attitude(1), init_attitude(2), init_attitude(3));
 
 %parameters of omnicopter
-d = 2; %[m]
+d = 1; %[m]
 
 propeller_drag_coeff = 1;
 motor_max_thrust = 900 * 8.825985; %[gram force] to [N]
@@ -47,7 +47,7 @@ R45_n = math.euler_to_dcm(deg2rad(-45), 0, 0);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Initialization: calculate position and direction vectors %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%position vectors (octorotor mode)
+%position vectors
 p1 = [+d; +d; +d];
 p2 = [-d; +d; +d];
 p3 = [-d; -d; +d];
@@ -57,15 +57,15 @@ p6 = [-d; +d; -d];
 p7 = [-d; -d; -d];
 p8 = [+d; -d; -d];
 
-%direction vectors (octorotor mode)
-r1 = [0; 0; -1];
-r2 = [0; 0; -1];
-r3 = [0; 0; -1];
-r4 = [0; 0; -1];
-r5 = [0; 0; 1];
-r6 = [0; 0; 1];
-r7 = [0; 0; 1];
-r8 = [0; 0; 1];
+%direction vectors
+r1 = calculate_direction_vector(p1, -pi/4);
+r2 = calculate_direction_vector(p2, 3*pi/4);
+r3 = calculate_direction_vector(p3, -pi/4);
+r4 = calculate_direction_vector(p4, 3*pi/4);
+r5 = calculate_direction_vector(p5, -3*pi/4 +pi);
+r6 = calculate_direction_vector(p6, pi/4 +pi);
+r7 = calculate_direction_vector(p7, -3*pi/4 +pi);
+r8 = calculate_direction_vector(p8, pi/4 +pi);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization of position and direction vectors %
@@ -102,6 +102,9 @@ quiver3(p5(1), p5(2), p5(3), r5(1), r5(2), r5(3), 'color', [1 0 0]);
 quiver3(p6(1), p6(2), p6(3), r6(1), r6(2), r6(3), 'color', [1 0 0]);
 quiver3(p7(1), p7(2), p7(3), r7(1), r7(2), r7(3), 'color', [1 0 0]);
 quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
+
+pause;
+close all;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Construct omnicopter Jacobian matrix %
@@ -215,7 +218,7 @@ for i = 1: ITERATION_TIMES
     f = omnicopter_thrust_to_force(f_motors, r_array);
     M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff);
     
-    %print desired force and 
+    %print desired force and
     s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
         f_d(1), f_d(2), f_d(3), f(1), f(2), f(3));
     %disp(s);
@@ -228,6 +231,29 @@ end
 pause;
 close all;
 
+end
+
+function r=calculate_direction_vector(p_vec, angle)
+math = se3_math;
+
+%base vectors of drone's center
+b0_x = [1; 0; 0];
+b0_y = [0; 1; 0];
+b0_z = [0; 0; 1];
+
+%zero degree direction vector
+u_x = p_vec;
+u_z = cross(u_x, b0_z);
+u_y = cross(u_z, u_x);
+
+%normalize
+u_x = u_x / norm(u_x);
+u_y = u_y / norm(u_y);
+u_z = u_z / norm(u_z);
+
+R = math.euler_to_dcm(angle, 0, 0);
+
+r = [u_x, u_y, u_z] * R * [0; 1; 0];
 end
 
 function f=omnicopter_thrust_to_force(f_motors, r_array)
