@@ -29,9 +29,9 @@ init_attitude(3) = deg2rad(0); %yaw
 uav_dynamics.R = math.euler_to_dcm(init_attitude(1), init_attitude(2), init_attitude(3));
 
 %parameters of omnicopter
-d = 1; %[m]
+d = 2; %[m]
 
-propeller_drag_coeff = 1;
+propeller_drag_coeff = 6.579e-2;   %[N/(m/s)?]
 motor_max_thrust = 900 * 8.825985; %[gram force] to [N]
 
 %omnicopter control gains
@@ -39,10 +39,6 @@ omnicopter_kx = [1; 1; 1];
 omnicopter_kv = [1; 1; 1];
 omnicopter_kR = [1; 1; 1];
 omnicopter_kW = [1; 1; 1];
-
-%rotation matrices for performing shape morphing
-R45_p = math.euler_to_dcm(deg2rad(45), 0, 0);
-R45_n = math.euler_to_dcm(deg2rad(-45), 0, 0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Initialization: calculate position and direction vectors %
@@ -103,14 +99,13 @@ quiver3(p6(1), p6(2), p6(3), r6(1), r6(2), r6(3), 'color', [1 0 0]);
 quiver3(p7(1), p7(2), p7(3), r7(1), r7(2), r7(3), 'color', [1 0 0]);
 quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
 
-pause;
-close all;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Construct omnicopter Jacobian matrix %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%direction matrix
-R = [r1, r2, r3, r4, r5, r6, r7, r8];
+%spin direction matrix
+S = [1, 1, 1, 1, -1, -1, -1, -1;
+    1, 1, 1, 1, -1, -1, -1, -1;
+    1, 1, 1, 1, -1, -1, -1, -1];
 
 %force Jacobian
 Jf = [r1, r2, r3, r4, r5, r6, r7, r8];
@@ -124,7 +119,7 @@ Jm_thrust = [cross(p1, r1), ...
     cross(p6, r6), ...
     cross(p7, r7), ...
     cross(p8, r8)];
-Jm_drag = propeller_drag_coeff * R .* Jf;
+Jm_drag = propeller_drag_coeff * S .* Jf;
 Jm = Jm_thrust + Jm_drag;
 
 %force/moment Jacobian
@@ -153,6 +148,10 @@ tu = [motor_max_thrust;
     motor_max_thrust;
     motor_max_thrust;
     motor_max_thrust];
+
+disp('press any key to start simulation.');
+pause;
+close all;
 
 %%%%%%%%%%%%%%%%%%%%%
 % Control main loop %
@@ -203,8 +202,8 @@ for i = 1: ITERATION_TIMES
     e3 = [0; 0; 1];
     f_d = Rt * (-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
     
-    f_d = [0; 0; 0]; %FIXME: DELETE THIS!
-    M_d = [0; 0; 0]; %FIXME: DELETE THIS!
+    f_d = [1; 2; 3]; %FIXME: DELETE THIS!
+    M_d = [1; 2; 3]; %FIXME: DELETE THIS!
     
     %calculate motor thrust via optimization
     options = [];
@@ -221,7 +220,11 @@ for i = 1: ITERATION_TIMES
     %print desired force and
     s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
         f_d(1), f_d(2), f_d(3), f(1), f(2), f(3));
-    %disp(s);
+    disp(s);
+    
+    s = sprintf('desired moment: (%f, %f, %f), feasible moment: (%f, %f, %f)', ...
+        M_d(1), M_d(2), M_d(3), M(1), M(2), M(3));
+    disp(s);
     
     %feed force/torque to the dynamics system
     uav_dynamics.M = M;
@@ -242,7 +245,7 @@ b0_y = [0; 1; 0];
 b0_z = [0; 0; 1];
 
 %zero degree direction vector
-u_x = p_vec;
+u_x = p_vec / norm(p_vec);
 u_z = cross(u_x, b0_z);
 u_y = cross(u_z, u_x);
 
