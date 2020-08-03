@@ -298,6 +298,11 @@ for i = 1: ITERATION_TIMES
     ev_arr(:, i) = ev;
 end
 
+r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
+p_array = [p1, p2, p3, p4, p5, p6, p7, p8];
+
+vectors_rigidbody_animation(r_array, p_array, 8, pos_arr, R_arr, 200, ITERATION_TIMES, uav_dynamics.dt)
+
 %%%%%%%%%%%%%%
 % plot datas %
 %%%%%%%%%%%%%%
@@ -440,7 +445,53 @@ ylabel('z [m/s]');
 disp('press any key to stop.')
 pause;
 close all;
+end
 
+function vectors_rigidbody_animation(r_array, p_array, motor_cnt, pos_array, R_array, skip_cnt, iteration_times, sleep_time)
+figure
+
+for i = 1: skip_cnt: iteration_times
+    clf;
+    xlim([-7, 7]);
+    ylim([-7, 7]);
+    zlim([-7, 7]);
+    xlabel('x')
+    ylabel('y')
+    zlabel('z')
+    daspect([1 1 1])
+    view(-35,45);
+    grid on
+    hold on
+    
+    R = R_array(:, :, i);
+    
+    for j = 1: motor_cnt
+        p = [p_array(1, j);
+            p_array(2, j);
+            p_array(3, j)];
+        
+        r = [r_array(1, j);
+            r_array(2, j);
+            r_array(3, j)];
+        
+        %translation
+        pos_x = pos_array(1, i);
+        pos_y = pos_array(2, i);
+        pos_z = pos_array(3, i);
+        
+        %rotation
+        p = R * p;
+        r = R * r;
+        
+        %plot position vectors
+        quiver3(pos_x, pos_y, pos_z, p(1), p(2), p(3), 'color', [0 0 1]);
+        
+        %plot direction vectors
+        quiver3(p(1) + pos_x, p(2) + pos_y, p(3) + pos_z, r(1), r(2), r(3), 'color', [1 0 0]);
+    end
+    
+    pause(sleep_time);
+end
 end
 
 function r=calculate_direction_vector(p_vec, angle)
