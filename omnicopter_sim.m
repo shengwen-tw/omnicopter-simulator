@@ -35,10 +35,10 @@ propeller_drag_coeff = 6.579e-2;   %[N/(m/s)?]
 motor_max_thrust = 900 * 8.825985; %[gram force] to [N]
 
 %omnicopter control gains
-omnicopter_kx = [1; 1; 1];
-omnicopter_kv = [1; 1; 1];
-omnicopter_kR = [1; 1; 1];
-omnicopter_kW = [1; 1; 1];
+omnicopter_kx = [60; 60; 100];
+omnicopter_kv = [10; 10; 10];
+omnicopter_kR = [10; 10; 10];
+omnicopter_kW = [5; 5; 5];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Initialization: calculate position and direction vectors %
@@ -153,6 +153,45 @@ disp('press any key to start simulation.');
 pause;
 close all;
 
+%%%%%%%%%%%%%%%%%%%%%%%%
+% controller setpoints %
+%%%%%%%%%%%%%%%%%%%%%%%%
+xd = zeros(3, ITERATION_TIMES);
+vd = zeros(3, ITERATION_TIMES);
+a_d = [0; 0; 0];
+yaw_d = zeros(1, ITERATION_TIMES);
+Wd = [0; 0; 0];
+W_dot_d = [0; 0; 0];
+
+%%%%%%%%%%%%%%%%%%%%%
+%   path planning   %
+%%%%%%%%%%%%%%%%%%%%%
+% cirular motion
+radius = 3;         %[m]
+circum_rate = 0.25; %[hz], times of finished a circular trajectory per second
+yaw_rate = 0.05;    %[hz], times of full rotation around z axis per second
+for i = 1: ITERATION_TIMES
+    %plan heading
+    if i == 1
+        yaw_d(1) = 0;
+    else
+        yaw_d(i) = yaw_d(i - 1) + (yaw_rate * uav_dynamics.dt * 2 * pi);
+    end
+    if yaw_d(i) > pi %bound yaw angle between +-180 degree
+        yaw_d(i) = yaw_d(i) - (2 * pi);
+    end
+    
+    %plan position
+    xd(1, i) = radius * cos(circum_rate * uav_dynamics.dt * i * pi);
+    xd(2, i) = radius * sin(circum_rate * uav_dynamics.dt * i * pi);
+    xd(3, i) = -1;
+    
+    %plan velocity
+    vd(1, i) = radius * -sin(circum_rate * uav_dynamics.dt * i * pi);
+    vd(2, i) = radius * cos(circum_rate * uav_dynamics.dt * i * pi);
+    vd(3, i) = 0;
+end
+
 %%%%%%%%%%%%%%
 % plot datas %
 %%%%%%%%%%%%%%
@@ -184,15 +223,11 @@ for i = 1: ITERATION_TIMES
     uav_dynamics = update(uav_dynamics);
     
     %desired attutide (DCM)
-    desired_roll = deg2rad(0);
+    desired_roll = deg2rad(40);
     desired_pitch = deg2rad(0);
     desired_yaw = deg2rad(0);
     Rd = math.euler_to_dcm(desired_roll, desired_pitch, desired_yaw);
     Rdt = Rd';
-    
-    %desired angular velocity and desired angular acceleration
-    Wd = [0; 0; 0];
-    W_dot_d = [0; 0; 0];
     
     Rt = uav_dynamics.R';
     I = eye(3);
@@ -209,20 +244,15 @@ for i = 1: ITERATION_TIMES
     M_feedfoward = WJW - uav_dynamics.J*(math.hat_map_3x3(uav_dynamics.W)*Rt*Rd*Wd - Rt*Rd*W_dot_d);
     
     %calculate desired moment
-    M_d = -omnicopter_kR.*eR - omnicopter_kW.*eW + M_feedfoward;
+    M_d = -omnicopter_kR.*eR -omnicopter_kW.*eW + M_feedfoward;
     
     %position error and velocity error
-    xd = [0; 0; 0];
-    vd = [0; 0; 0];
-    ex = uav_dynamics.x - xd;
-    ev = uav_dynamics.v - vd;
+    ex = uav_dynamics.x - xd(:, i);
+    ev = uav_dynamics.v - xd(:, i);
     
     %calculate desired force
     e3 = [0; 0; 1];
-    f_d = Rt * (-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
-    
-    f_d = [0; 0; 0]; %FIXME: DELETE THIS!
-    M_d = [0; 0; 0]; %FIXME: DELETE THIS!
+    f_d = Rt * -(-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
     
     %calculate motor thrust via optimization
     options = [];
@@ -271,6 +301,7 @@ end
 %%%%%%%%%%%%%%
 % plot datas %
 %%%%%%%%%%%%%%
+%principle rotation error angle
 %principle rotation error angle
 figure('Name', 'principle rotation error angle');
 plot(time_arr, eR_prv_arr(1, :));
@@ -322,39 +353,39 @@ plot(time_arr, euler_arr(2, :));
 xlabel('time [s]');
 ylabel('pitch [deg]');
 subplot (3, 1, 3);
-plot(time_arr, euler_arr(3, :));
+plot(time_arr, euler_arr(3, :), time_arr, rad2deg(yaw_d));
 xlabel('time [s]');
 ylabel('yaw [deg]');
 
 %position
 figure('Name', 'position (NED frame)');
 subplot (3, 1, 1);
-plot(time_arr, pos_arr(1, :));
+plot(time_arr, pos_arr(1, :), time_arr, xd(1, :));
 title('position (NED frame)');
 xlabel('time [s]');
 ylabel('x [m]');
 subplot (3, 1, 2);
-plot(time_arr, pos_arr(2, :));
+plot(time_arr, pos_arr(2, :), time_arr, xd(2, :));
 xlabel('time [s]');
 ylabel('y [m]');
 subplot (3, 1, 3);
-plot(time_arr, -pos_arr(3, :));
+plot(time_arr, -pos_arr(3, :), time_arr, -xd(3, :));
 xlabel('time [s]');
 ylabel('-z [m]');
 
 %velocity
 figure('Name', 'velocity (NED frame)');
 subplot (3, 1, 1);
-plot(time_arr, vel_arr.g(1, :));
+plot(time_arr, vel_arr.g(1, :), time_arr, vd(1, :));
 title('velocity (NED frame)');
 xlabel('time [s]');
 ylabel('x [m/s]');
 subplot (3, 1, 2);
-plot(time_arr, vel_arr.g(2, :));
+plot(time_arr, vel_arr.g(2, :), time_arr, vd(2, :));
 xlabel('time [s]');
 ylabel('y [m/s]');
 subplot (3, 1, 3);
-plot(time_arr, -vel_arr.g(3, :));
+plot(time_arr, -vel_arr.g(3, :), time_arr, -vd(3, :));
 xlabel('time [s]');
 ylabel('-z [m/s]');
 
@@ -436,14 +467,14 @@ r = [u_x, u_y, u_z] * R * [0; 1; 0];
 end
 
 function f=omnicopter_thrust_to_force(f_motors, r_array)
-f = 0;
+f = [0; 0; 0];
 for i = 1: 8
-    f = f + (f_motors(i) * r_array(:, i));
+    f = f + (f_motors(i) .* r_array(:, i));
 end
 end
 
 function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff)
-M = 0;
+M = [0; 0; 0];
 for i = 1: 8
     M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
         (propeller_drag_coeff .* f_motors(i) .* r_array(:, i));
