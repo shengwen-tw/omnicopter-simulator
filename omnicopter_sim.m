@@ -153,6 +153,25 @@ disp('press any key to start simulation.');
 pause;
 close all;
 
+%%%%%%%%%%%%%%
+% plot datas %
+%%%%%%%%%%%%%%
+time_arr = zeros(1, ITERATION_TIMES);
+accel_arr = zeros(3, ITERATION_TIMES);
+vel_arr.g = zeros(3, ITERATION_TIMES);
+R_arr = zeros(3, 3, ITERATION_TIMES);
+euler_arr = zeros(3, ITERATION_TIMES);
+pos_arr = zeros(3, ITERATION_TIMES);
+W_dot_arr = zeros(3, ITERATION_TIMES);
+W_arr = zeros(3, ITERATION_TIMES);
+M_arr = zeros(3, ITERATION_TIMES);
+prv_angle_arr = zeros(1, ITERATION_TIMES);
+eR_prv_arr = zeros(3, ITERATION_TIMES);
+eR_arr = zeros(3, ITERATION_TIMES);
+eW_arr = zeros(3, ITERATION_TIMES);
+ex_arr = zeros(3, ITERATION_TIMES);
+ev_arr = zeros(3, ITERATION_TIMES);
+
 %%%%%%%%%%%%%%%%%%%%%
 % Control main loop %
 %%%%%%%%%%%%%%%%%%%%%
@@ -202,8 +221,8 @@ for i = 1: ITERATION_TIMES
     e3 = [0; 0; 1];
     f_d = Rt * (-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
     
-    f_d = [1; 2; 3]; %FIXME: DELETE THIS!
-    M_d = [1; 2; 3]; %FIXME: DELETE THIS!
+    f_d = [0; 0; 0]; %FIXME: DELETE THIS!
+    M_d = [0; 0; 0]; %FIXME: DELETE THIS!
     
     %calculate motor thrust via optimization
     options = [];
@@ -229,8 +248,165 @@ for i = 1: ITERATION_TIMES
     %feed force/torque to the dynamics system
     uav_dynamics.M = M;
     uav_dynamics.f = f;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % update plot data arrays %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    time_arr(i) = i * uav_dynamics.dt;
+    eR_prv_arr(:, i) = rad2deg(eR_prv);
+    eR_arr(:, i) = rad2deg(eR);
+    eW_arr(:, i) = rad2deg(eW);
+    accel_arr(:, i) = uav_dynamics.a;
+    vel_arr.g(:, i) = uav_dynamics.v;
+    pos_arr(:, i) = uav_dynamics.x;
+    R_arr(:, :, i) = uav_dynamics.R;
+    euler_arr(:, i) = rad2deg(math.dcm_to_euler(uav_dynamics.R));
+    W_dot_arr(:, i) = rad2deg(uav_dynamics.W_dot);
+    W_arr(:, i) = rad2deg(uav_dynamics.W);
+    M_arr(:, i) = uav_dynamics.M;
+    ex_arr(:, i) = ex;
+    ev_arr(:, i) = ev;
 end
 
+%%%%%%%%%%%%%%
+% plot datas %
+%%%%%%%%%%%%%%
+%principle rotation error angle
+figure('Name', 'principle rotation error angle');
+plot(time_arr, eR_prv_arr(1, :));
+title('principle rotation error angle');
+xlabel('time [s]');
+ylabel('x [deg]');
+
+%attitude error
+figure('Name', 'eR');
+subplot (3, 1, 1);
+plot(time_arr, eR_arr(1, :));
+title('eR');
+xlabel('time [s]');
+ylabel('x [deg]');
+subplot (3, 1, 2);
+plot(time_arr, eR_arr(2, :));
+xlabel('time [s]');
+ylabel('y [deg]');
+subplot (3, 1, 3);
+plot(time_arr, eR_arr(3, :));
+xlabel('time [s]');
+ylabel('z [deg]');
+
+%attitude rate error
+figure('Name', 'eW');
+subplot (3, 1, 1);
+plot(time_arr, eW_arr(1, :));
+title('eW');
+xlabel('time [s]');
+ylabel('x [deg/s]');
+subplot (3, 1, 2);
+plot(time_arr, eW_arr(2, :));
+xlabel('time [s]');
+ylabel('y [deg/s]');
+subplot (3, 1, 3);
+plot(time_arr, eW_arr(3, :));
+xlabel('time [s]');
+ylabel('z [deg/s]');
+
+%attitude (euler angles)
+figure('Name', 'attitude (euler angles)');
+subplot (3, 1, 1);
+plot(time_arr, euler_arr(1, :));
+title('attitude (euler angles)');
+xlabel('time [s]');
+ylabel('roll [deg]');
+subplot (3, 1, 2);
+plot(time_arr, euler_arr(2, :));
+xlabel('time [s]');
+ylabel('pitch [deg]');
+subplot (3, 1, 3);
+plot(time_arr, euler_arr(3, :));
+xlabel('time [s]');
+ylabel('yaw [deg]');
+
+%position
+figure('Name', 'position (NED frame)');
+subplot (3, 1, 1);
+plot(time_arr, pos_arr(1, :));
+title('position (NED frame)');
+xlabel('time [s]');
+ylabel('x [m]');
+subplot (3, 1, 2);
+plot(time_arr, pos_arr(2, :));
+xlabel('time [s]');
+ylabel('y [m]');
+subplot (3, 1, 3);
+plot(time_arr, -pos_arr(3, :));
+xlabel('time [s]');
+ylabel('-z [m]');
+
+%velocity
+figure('Name', 'velocity (NED frame)');
+subplot (3, 1, 1);
+plot(time_arr, vel_arr.g(1, :));
+title('velocity (NED frame)');
+xlabel('time [s]');
+ylabel('x [m/s]');
+subplot (3, 1, 2);
+plot(time_arr, vel_arr.g(2, :));
+xlabel('time [s]');
+ylabel('y [m/s]');
+subplot (3, 1, 3);
+plot(time_arr, -vel_arr.g(3, :));
+xlabel('time [s]');
+ylabel('-z [m/s]');
+
+%acceleration
+figure('Name', 'acceleration (NED frame)');
+subplot (3, 1, 1);
+plot(time_arr, accel_arr(1, :));
+title('acceleration (NED frame)');
+xlabel('time [s]');
+ylabel('x [m/s^2]');
+subplot (3, 1, 2);
+plot(time_arr, accel_arr(2, :));
+xlabel('time [s]');
+ylabel('y [m/s^2]');
+subplot (3, 1, 3);
+plot(time_arr, -accel_arr(3, :));
+xlabel('time [s]');
+ylabel('-z [m/s^2]');
+
+%position error
+figure('Name', 'position error');
+subplot (3, 1, 1);
+plot(time_arr, ex_arr(1, :));
+title('position error');
+xlabel('time [s]');
+ylabel('x [m]');
+subplot (3, 1, 2);
+plot(time_arr, ex_arr(2, :));
+xlabel('time [s]');
+ylabel('y [m]');
+subplot (3, 1, 3);
+plot(time_arr, ex_arr(3, :));
+xlabel('time [s]');
+ylabel('z [m]');
+
+%velocity error
+figure('Name', 'velocity error');
+subplot (3, 1, 1);
+plot(time_arr, ev_arr(1, :));
+title('velocity error');
+xlabel('time [s]');
+ylabel('x [m/s]');
+subplot (3, 1, 2);
+plot(time_arr, ev_arr(2, :));
+xlabel('time [s]');
+ylabel('y [m/s]');
+subplot (3, 1, 3);
+plot(time_arr, ev_arr(3, :));
+xlabel('time [s]');
+ylabel('z [m/s]');
+
+disp('press any key to stop.')
 pause;
 close all;
 
@@ -270,6 +446,6 @@ function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_dra
 M = 0;
 for i = 1: 8
     M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
-        (propeller_drag_coeff * f_motors(i) * r_array(:, i));
+        (propeller_drag_coeff .* f_motors(i) .* r_array(:, i));
 end
 end
