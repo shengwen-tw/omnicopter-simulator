@@ -111,10 +111,24 @@ quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Construct omnicopter Jacobian matrix %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%spin direction drag coefficient sign
+spin_ccw = +1;
+spin_cw = -1;
+
+%spin direction vector
+spin_dir = [spin_ccw, ... %motor1
+    spin_ccw, ... %motor2
+    spin_ccw, ... %motor3
+    spin_ccw, ... %motor4
+    spin_cw,  ... %motor5
+    spin_cw,  ... %motor6
+    spin_cw,  ... %motor7
+    spin_cw]; ... %motor8
+    
 %spin direction matrix
-S = [1, 1, 1, 1, -1, -1, -1, -1;
-    1, 1, 1, 1, -1, -1, -1, -1;
-    1, 1, 1, 1, -1, -1, -1, -1];
+S = [spin_dir;
+    spin_dir;
+    spin_dir];
 
 %force Jacobian
 Jf = [r1, r2, r3, r4, r5, r6, r7, r8];
@@ -128,8 +142,8 @@ Jm_thrust = [cross(p1, r1), ...
     cross(p6, r6), ...
     cross(p7, r7), ...
     cross(p8, r8)];
-Jm_drag = propeller_drag_coeff * S .* Jf;
-Jm = Jm_thrust + Jm_drag;
+Jm_drag = propeller_drag_coeff .* Jf;
+Jm = Jm_thrust% + Jm_drag;
 
 %force/moment Jacobian
 J = [Jf; Jm];
@@ -191,7 +205,7 @@ for i = 1: ITERATION_TIMES
     if roll_d(i) > pi %bound yaw angle between +-180 degree
         roll_d(i) = roll_d(i) - (2 * pi);
     end
-
+    
     %plan yaw
     if i == 1
         yaw_d(1) = 0;
@@ -285,7 +299,7 @@ for i = 1: ITERATION_TIMES
     p_array = [p1, p2, p3, p4, p5, p6, p7, p8];
     r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
     f = omnicopter_thrust_to_force(f_motors, r_array);
-    M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff);
+    M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, spin_dir, propeller_drag_coeff);
     
     %print desired force and
     s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
@@ -545,11 +559,11 @@ for i = 1: 8
 end
 end
 
-function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff)
+function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, spin_dir, propeller_drag_coeff)
 M = [0; 0; 0];
 
 for i = 1: 8
-    M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
-        (propeller_drag_coeff .* f_motors(i) .* r_array(:, i));
+    M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)); + ...
+        ((spin_dir(i) * propeller_drag_coeff * f_motors(i)) .* r_array(:, i));
 end
 end
