@@ -65,6 +65,12 @@ classdef se3_math
                      vec_before(2) + y;
                      vec_before(3) + z];
 	end
+        
+    function vec_ned=vector_enu_to_ned(obj, vec_enu)
+        vec_ned = [vec_enu(2);
+                   vec_enu(1);
+                   -vec_enu(3)];
+    end
     end
 end
 
