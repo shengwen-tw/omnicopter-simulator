@@ -245,6 +245,8 @@ eR_arr = zeros(3, ITERATION_TIMES);
 eW_arr = zeros(3, ITERATION_TIMES);
 ex_arr = zeros(3, ITERATION_TIMES);
 ev_arr = zeros(3, ITERATION_TIMES);
+f_rms_error_arr = zeros(1, ITERATION_TIMES);
+M_rms_error_arr = zeros(1, ITERATION_TIMES);
 
 %%%%%%%%%%%%%%%%%%%%%
 % Control main loop %
@@ -301,13 +303,19 @@ for i = 1: ITERATION_TIMES
     f = omnicopter_thrust_to_force(f_motors, r_array);
     M = omnicopter_thrust_to_moment(f_motors, p_array, r_array, spin_dir, propeller_drag_coeff);
     
+    %calculate RMS error between desired force/torque and feasible force/torque
+    f_diff = f_d - f;
+    M_diff = M_d -M;
+    f_rms_error = sqrt(dot(f_diff.', f_diff));
+    M_rms_error = sqrt(dot(M_diff.', M_diff));
+    
     %print desired force and
-    s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f)', ...
-        f_d(1), f_d(2), f_d(3), f(1), f(2), f(3));
+    s = sprintf('desired force: (%f, %f, %f), feasible force: (%f, %f, %f), RMS error: %f', ...
+        f_d(1), f_d(2), f_d(3), f(1), f(2), f(3), f_rms_error);
     disp(s);
     
-    s = sprintf('desired moment: (%f, %f, %f), feasible moment: (%f, %f, %f)', ...
-        M_d(1), M_d(2), M_d(3), M(1), M(2), M(3));
+    s = sprintf('desired moment: (%f, %f, %f), feasible moment: (%f, %f, %f), RMS error: %f', ...
+        M_d(1), M_d(2), M_d(3), M(1), M(2), M(3), M_rms_error);
     disp(s);
     
     %feed force/torque to the dynamics system
@@ -331,6 +339,8 @@ for i = 1: ITERATION_TIMES
     M_arr(:, i) = uav_dynamics.M;
     ex_arr(:, i) = ex;
     ev_arr(:, i) = ev;
+    f_rms_error_arr(i) = f_rms_error;
+    M_rms_error_arr(i) = M_rms_error;
 end
 
 r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
@@ -477,6 +487,19 @@ plot(time_arr, ev_arr(3, :));
 xlabel('time [s]');
 ylabel('z [m/s]');
 
+%motor thrust optimization error
+figure('Name', 'motor thrust optimization error');
+subplot (2, 1, 1);
+plot(time_arr, f_rms_error_arr);
+title('force error');
+xlabel('time [s]');
+ylabel('x [N]');
+subplot (2, 1, 2);
+plot(time_arr, M_rms_error_arr);
+title('moment error');
+xlabel('time [s]');
+ylabel('y [Nm]');
+
 disp('press any key to stop.')
 pause;
 close all;
@@ -555,6 +578,7 @@ end
 function f=omnicopter_thrust_to_force(f_motors, r_array)
 f = [0; 0; 0];
 for i = 1: 8
+    
     f = f + (f_motors(i) .* r_array(:, i));
 end
 end
