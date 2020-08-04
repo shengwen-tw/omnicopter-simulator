@@ -35,9 +35,9 @@ propeller_drag_coeff = 6.579e-2;   %[N/(m/s)?]
 motor_max_thrust = 900 * 0.00980665; %[gram force] to [N]
 
 %omnicopter control gains
-omnicopter_kx = [30; 30; 20];
+omnicopter_kx = [30; 30; 30];
 omnicopter_kv = [20; 20; 20];
-omnicopter_kR = [20; 20; 20];
+omnicopter_kR = [35; 35; 35];
 omnicopter_kW = [10; 10; 10];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -168,6 +168,7 @@ close all;
 xd = zeros(3, ITERATION_TIMES);
 vd = zeros(3, ITERATION_TIMES);
 a_d = [0; 0; 0];
+roll_d = zeros(1, ITERATION_TIMES);
 yaw_d = zeros(1, ITERATION_TIMES);
 Wd = [0; 0; 0];
 W_dot_d = [0; 0; 0];
@@ -178,9 +179,20 @@ W_dot_d = [0; 0; 0];
 % cirular motion
 radius = 1;         %[m]
 circum_rate = 0.25; %[hz], times of finished a circular trajectory per second
-yaw_rate = 0.1;    %[hz], times of full rotation around z axis per second
+roll_rate = 0.1;    %[hz], times of full rotation around x axis per second
+yaw_rate = 0.2;    %[hz], times of full rotation around z axis per second
 for i = 1: ITERATION_TIMES
-    %plan heading
+    %plan roll
+    if i == 1
+        roll_d(1) = 0;
+    else
+        roll_d(i) = roll_d(i - 1) + (roll_rate * uav_dynamics.dt * 2 * pi);
+    end
+    if roll_d(i) > pi %bound yaw angle between +-180 degree
+        roll_d(i) = roll_d(i) - (2 * pi);
+    end
+
+    %plan yaw
     if i == 1
         yaw_d(1) = 0;
     else
@@ -232,7 +244,7 @@ for i = 1: ITERATION_TIMES
     uav_dynamics = update(uav_dynamics);
     
     %desired attutide (DCM)
-    desired_roll = deg2rad(0);
+    desired_roll = roll_d(i);
     desired_pitch = deg2rad(0);
     desired_yaw = yaw_d(i);
     Rd = math.euler_to_dcm(desired_roll, desired_pitch, desired_yaw);
@@ -358,7 +370,7 @@ ylabel('z [deg/s]');
 %attitude (euler angles)
 figure('Name', 'attitude (euler angles)');
 subplot (3, 1, 1);
-plot(time_arr, euler_arr(1, :));
+plot(time_arr, euler_arr(1, :), time_arr, rad2deg(roll_d));
 title('attitude (euler angles)');
 xlabel('time [s]');
 ylabel('roll [deg]');
