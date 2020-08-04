@@ -129,7 +129,7 @@ Jm_thrust = [cross(p1, r1), ...
     cross(p7, r7), ...
     cross(p8, r8)];
 Jm_drag = propeller_drag_coeff * S .* Jf;
-Jm = Jm_thrust% + Jm_drag;
+Jm = Jm_thrust + Jm_drag;
 
 %force/moment Jacobian
 J = [Jf; Jm];
@@ -178,7 +178,7 @@ W_dot_d = [0; 0; 0];
 % cirular motion
 radius = 1;         %[m]
 circum_rate = 0.25; %[hz], times of finished a circular trajectory per second
-yaw_rate = 0.001;    %[hz], times of full rotation around z axis per second
+yaw_rate = 0.1;    %[hz], times of full rotation around z axis per second
 for i = 1: ITERATION_TIMES
     %plan heading
     if i == 1
@@ -234,7 +234,7 @@ for i = 1: ITERATION_TIMES
     %desired attutide (DCM)
     desired_roll = deg2rad(0);
     desired_pitch = deg2rad(0);
-    desired_yaw = deg2rad(0);
+    desired_yaw = yaw_d(i);
     Rd = math.euler_to_dcm(desired_roll, desired_pitch, desired_yaw);
     Rdt = Rd.';
     
@@ -535,7 +535,7 @@ end
 
 function M=omnicopter_thrust_to_moment(f_motors, p_array, r_array, propeller_drag_coeff)
 M = [0; 0; 0];
-disp(f_motors)
+
 for i = 1: 8
     M = M + f_motors(i) * cross(p_array(:, i), r_array(:, i)) + ...
         (propeller_drag_coeff .* f_motors(i) .* r_array(:, i));
