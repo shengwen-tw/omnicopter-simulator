@@ -112,8 +112,8 @@ quiver3(p8(1), p8(2), p8(3), r8(1), r8(2), r8(3), 'color', [1 0 0]);
 % Construct omnicopter Jacobian matrix %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %spin direction drag coefficient sign
-spin_ccw = +1;
-spin_cw = -1;
+spin_ccw = -1;
+spin_cw = +1;
 
 %spin direction vector
 spin_dir = [spin_ccw, ... %motor1
