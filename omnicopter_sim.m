@@ -289,7 +289,7 @@ for i = 1: ITERATION_TIMES
     
     %calculate desired force
     e3 = [0; 0; 1];
-    f_d = Rt * -(-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
+    f_d = Rt * (-omnicopter_kx.*ex -omnicopter_kv.*ev -uav_dynamics.mass*uav_dynamics.g*e3);
     
     %calculate motor thrust via optimization
     options = [];
