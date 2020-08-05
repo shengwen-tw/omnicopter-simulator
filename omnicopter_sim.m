@@ -155,7 +155,7 @@ disp(J);
 % Construct matrices and vectors for force/moment optimization QP %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Q = eye(8);
-tb = [-motor_max_thrust;
+f_lb = [-motor_max_thrust;
     -motor_max_thrust;
     -motor_max_thrust;
     -motor_max_thrust;
@@ -163,7 +163,7 @@ tb = [-motor_max_thrust;
     -motor_max_thrust;
     -motor_max_thrust;
     -motor_max_thrust];
-tu = [motor_max_thrust;
+f_ub = [motor_max_thrust;
     motor_max_thrust;
     motor_max_thrust;
     motor_max_thrust;
@@ -247,6 +247,7 @@ ex_arr = zeros(3, ITERATION_TIMES);
 ev_arr = zeros(3, ITERATION_TIMES);
 f_rms_error_arr = zeros(1, ITERATION_TIMES);
 M_rms_error_arr = zeros(1, ITERATION_TIMES);
+f_motors_arr = zeros(8, ITERATION_TIMES);
 
 %%%%%%%%%%%%%%%%%%%%%
 % Control main loop %
@@ -295,7 +296,7 @@ for i = 1: ITERATION_TIMES
     options = [];
     options = optimoptions('quadprog','Display','off'); %make quadprog silent
     zeta = [f_d; M_d];
-    f_motors = quadprog(Q, [], [], [], J, zeta, tb, tu, [], options);
+    f_motors = quadprog(Q, [], [], [], J, zeta, f_lb, f_ub, [], options);
     
     %convert motor thrusts to rigirbody force/torque
     p_array = [p1, p2, p3, p4, p5, p6, p7, p8];
@@ -305,7 +306,7 @@ for i = 1: ITERATION_TIMES
     
     %calculate RMS error between desired force/torque and feasible force/torque
     f_diff = f_d - f;
-    M_diff = M_d -M;
+    M_diff = M_d - M;
     f_rms_error = sqrt(dot(f_diff.', f_diff));
     M_rms_error = sqrt(dot(M_diff.', M_diff));
     
@@ -341,6 +342,7 @@ for i = 1: ITERATION_TIMES
     ev_arr(:, i) = ev;
     f_rms_error_arr(i) = f_rms_error;
     M_rms_error_arr(i) = M_rms_error;
+    f_motors_arr(:, i) = 101.97 * f_motors; %to gram force
 end
 
 r_array = [r1, r2, r3, r4, r5, r6, r7, r8];
@@ -499,6 +501,13 @@ plot(time_arr, M_rms_error_arr);
 title('moment error');
 xlabel('time [s]');
 ylabel('y [Nm]');
+
+%motor thrusts
+figure('Name', 'motor thrusts');
+plot(time_arr, f_motors_arr);
+title('motor thrusts');
+xlabel('time [s]');
+ylabel('x [gram force]');
 
 disp('press any key to stop.')
 pause;
