@@ -142,8 +142,8 @@ Jm_thrust = [cross(p1, r1), ...
     cross(p6, r6), ...
     cross(p7, r7), ...
     cross(p8, r8)];
-Jm_drag = propeller_drag_coeff .* Jf;
-Jm = Jm_thrust% + Jm_drag;
+Jm_drag = propeller_drag_coeff .* S .* Jf;
+Jm = Jm_thrust + Jm_drag;
 
 %force/moment Jacobian
 J = [Jf; Jm];
