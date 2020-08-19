@@ -570,7 +570,7 @@ b0_y = [0; 1; 0];
 b0_z = [0; 0; 1];
 
 %zero degree direction vector
-u_x = p_vec / norm(p_vec);
+u_x = p_vec;
 u_z = cross(u_x, b0_z);
 u_y = cross(u_z, u_x);
 
